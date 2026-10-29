@@ -1,0 +1,30 @@
+{
+  "name": "wayancc/inkdocs",
+  "description": "Fast flat-file documentation engine for PHP 8. Markdown in, cached HTML out. No database.",
+  "type": "project",
+  "license": "MIT",
+  "keywords": ["documentation", "docs", "markdown", "flat-file", "cms", "static-site-generator", "php"],
+  "require": {
+    "php": ">=8.2",
+    "ext-mbstring": "*",
+    "league/commonmark": "^2.5",
+    "scrivo/highlight.php": "^9.18",
+    "symfony/yaml": "^6.4 || ^7.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Inkdocs\\": "src/"
+    }
+  },
+  "bin": ["bin/inkdocs"],
+  "scripts": {
+    "serve": "php bin/inkdocs serve",
+    "build": "php bin/inkdocs build",
+    "check": "php bin/inkdocs check",
+    "test": "php tests/run.php"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true
+  }
+}

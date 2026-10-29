@@ -1,0 +1,133 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Inkdocs\Build\Builder;
+use Inkdocs\Cache\PageCache;
+use Inkdocs\Config;
+use Inkdocs\Content\Repository;
+use Inkdocs\Site;
+
+$root = dirname(__DIR__);
+require $root . '/vendor/autoload.php';
+
+$args = array_slice($argv, 1);
+$command = array_shift($args) ?? 'help';
+$opts = [];
+$positional = [];
+foreach ($args as $arg) {
+    if (preg_match('/^--([a-z-]+)(?:=(.*))?$/', $arg, $m)) {
+        $opts[$m[1]] = $m[2] ?? true;
+    } else {
+        $positional[] = $arg;
+    }
+}
+
+$out = static fn (string $s = '') => fwrite(STDOUT, $s . PHP_EOL);
+$err = static fn (string $s) => fwrite(STDERR, "\033[31m{$s}\033[0m" . PHP_EOL);
+$ok  = static fn (string $s) => fwrite(STDOUT, "\033[32m{$s}\033[0m" . PHP_EOL);
+
+$config = Config::load($root);
+$cacheDir = $config->path('public_dir') . '/cache';
+
+try {
+    switch ($command) {
+        case 'serve':
+            $port = (int) ($opts['port'] ?? 8000);
+            $host = (string) ($opts['host'] ?? '127.0.0.1');
+            $ok("Inkdocs dev server: http://{$host}:{$port}  (live reload of content, cache off — Ctrl+C to stop)");
+            putenv('INKDOCS_DEBUG=1');
+            passthru(sprintf('INKDOCS_DEBUG=1 %s -S %s:%d -t %s %s',
+                escapeshellarg(PHP_BINARY), $host, $port,
+                escapeshellarg($config->path('public_dir')),
+                escapeshellarg($config->path('public_dir') . '/index.php')));
+            break;
+
+        case 'build':
+            $dest = (string) ($opts['out'] ?? $root . '/dist');
+            $dest = str_starts_with($dest, '/') ? $dest : getcwd() . '/' . $dest;
+            $overrides = isset($opts['base']) ? ['base_url' => (string) $opts['base']] : [];
+            $site = new Site($config->with($overrides + ['debug' => false]));
+
+            if (is_dir($dest)) {
+                (new PageCache($dest))->clear();
+            }
+            $out("Building static site → {$dest}");
+            $stats = (new Builder($site, isset($opts['verbose']) ? $out : null))->build($dest, static: true);
+            $ok(sprintf('Built %d pages (%d files) in %.2fs', $stats['pages'], $stats['files'], $stats['seconds']));
+            reportBroken($site, $err);
+            break;
+
+        case 'cache:warm':
+            $site = new Site($config->with(['debug' => false]));
+            $removed = (new PageCache($cacheDir))->clear();
+            $stats = (new Builder($site))->build($cacheDir, static: false);
+            $ok(sprintf('Cache rebuilt: %d pages (%d files) in %.2fs, %d stale files removed',
+                $stats['pages'], $stats['files'], $stats['seconds'], $removed));
+            break;
+
+        case 'cache:clear':
+            $ok(sprintf('Removed %d cached files', (new PageCache($cacheDir))->clear()));
+            break;
+
+        case 'check':
+            $site = new Site($config->with(['debug' => false]));
+            $count = 0;
+            foreach ($config->versions() as $version) {
+                $repo = $site->repo($version);
+                foreach ($repo->pages() as $page) {
+                    $site->renderer->render($page, $repo, $config->baseUrl());
+                    $count++;
+                }
+            }
+            $broken = reportBroken($site, $err);
+            if ($broken === 0) {
+                $ok("Checked {$count} pages: no broken links");
+            }
+            exit($broken > 0 ? 1 : 0);
+
+        case 'new':
+            $path = $positional[0] ?? null;
+            if ($path === null) {
+                throw new InvalidArgumentException('Usage: bin/inkdocs new <path/inside/content.md> ["Title"]');
+            }
+            $path = str_ends_with($path, '.md') ? $path : $path . '.md';
+            $file = $config->path('content_dir') . '/' . ltrim($path, '/');
+            if (is_file($file)) {
+                throw new RuntimeException("Already exists: {$file}");
+            }
+            $title = $positional[1] ?? Repository::humanize(basename($path, '.md'));
+            PageCache::put($file, "---\ntitle: {$title}\ndescription: \n---\n\n# {$title}\n\nStart writing here.\n");
+            $ok("Created {$file}");
+            break;
+
+        default:
+            $out(<<<TXT
+            Inkdocs — Markdown docs engine
+
+            Usage: php bin/inkdocs <command> [options]
+
+              serve [--port=8000]           Dev server with cache off (edits show instantly)
+              build [--out=dist] [--base=/] Export a fully static site (GitHub Pages, Netlify, S3)
+              cache:warm                    Pre-render every page into public/cache (run after deploy)
+              cache:clear                   Empty public/cache
+              check                         Find broken links between docs (exit code 1 for CI)
+              new <path> ["Title"]          Create a page, e.g. new v2/guide/deploy "Deploying"
+            TXT);
+    }
+} catch (Throwable $e) {
+    $err($e->getMessage());
+    exit(1);
+}
+
+function reportBroken(Site $site, callable $err): int
+{
+    $broken = array_unique(array_map('serialize', $site->renderer->brokenLinks()));
+    foreach ($broken as $item) {
+        $item = unserialize($item);
+        $err("Broken link in {$item['source']}: {$item['link']}");
+    }
+
+    return count($broken);
+}

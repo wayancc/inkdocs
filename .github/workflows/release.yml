@@ -1,0 +1,32 @@
+# On a version tag, attach a zip that already contains vendor/,
+# so people on hosts without Composer can upload and go.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+      - run: composer install --no-dev --no-progress --prefer-dist --optimize-autoloader
+      - name: Package
+        run: |
+          name="inkdocs-${GITHUB_REF_NAME#v}"
+          mkdir -p "build/$name"
+          cp -r bin config.php content public src theme vendor deploy composer.json LICENSE README.md "build/$name/"
+          rm -rf "build/$name/public/cache"/* && touch "build/$name/public/cache/.gitkeep"
+          (cd build && zip -qr "$name.zip" "$name")
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: build/*.zip
+          generate_release_notes: true

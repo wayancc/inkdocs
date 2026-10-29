@@ -1,0 +1,8 @@
+/vendor/
+/dist/
+/public/cache/*
+!/public/cache/.gitkeep
+.DS_Store
+.idea/
+.vscode/
+*.tmp
