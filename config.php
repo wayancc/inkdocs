@@ -8,7 +8,7 @@ return [
     'description' => 'A fast, flat-file documentation engine for PHP 8. Write Markdown, ship docs.',
 
     // Full origin, used for the sitemap, canonical URLs and llms.txt. Leave empty to skip the sitemap.
-    'site_url'    => 'https://inkdocs.example.com',
+    'site_url'    => 'https://wayancc.github.io',
 
     // Path prefix when the site lives in a subfolder, e.g. '/docs/'.
     'base_url'    => '/',
