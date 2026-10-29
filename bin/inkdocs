@@ -38,7 +38,8 @@ try {
             $host = (string) ($opts['host'] ?? '127.0.0.1');
             $ok("Inkdocs dev server: http://{$host}:{$port}  (live reload of content, cache off — Ctrl+C to stop)");
             putenv('INKDOCS_DEBUG=1');
-            passthru(sprintf('INKDOCS_DEBUG=1 %s -S %s:%d -t %s %s',
+            // putenv() above is inherited by the child process; a "VAR=1 cmd" prefix would break on Windows.
+            passthru(sprintf('%s -S %s:%d -t %s %s',
                 escapeshellarg(PHP_BINARY), $host, $port,
                 escapeshellarg($config->path('public_dir')),
                 escapeshellarg($config->path('public_dir') . '/index.php')));
@@ -46,7 +47,7 @@ try {
 
         case 'build':
             $dest = (string) ($opts['out'] ?? $root . '/dist');
-            $dest = str_starts_with($dest, '/') ? $dest : getcwd() . '/' . $dest;
+            $dest = Config::isAbsolute($dest) ? $dest : getcwd() . '/' . $dest;
             $overrides = isset($opts['base']) ? ['base_url' => (string) $opts['base']] : [];
             $site = new Site($config->with($overrides + ['debug' => false]));
 

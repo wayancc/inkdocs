@@ -116,6 +116,10 @@ check('static build writes every page', is_file("$out/index.html") && is_file("$
 check('static build writes data files', is_file("$out/search.json") && is_file("$out/v1/search.json") && is_file("$out/llms.txt"));
 check('static build copies assets', is_file("$out/assets/wyn-inkdocs.css") && is_file("$out/assets/fonts/wyn-inter-latin.woff2") && !is_file("$out/index.php"));
 check('static build has 404 page', is_file("$out/404.html"));
+check('static build skips public/cache', !is_dir("$out/cache"));
+check('absolute paths on Unix and Windows', Config::isAbsolute('/srv/docs') && Config::isAbsolute('C:\docs')
+    && Config::isAbsolute('C:/docs') && Config::isAbsolute('\\\\server\share')
+    && !Config::isAbsolute('content') && !Config::isAbsolute('C:docs'));
 check('cache path mapping', PageCache::relativeFile('') === 'index.html'
     && PageCache::relativeFile('a/b') === 'a/b/index.html'
     && PageCache::relativeFile('v1/search.json') === 'v1/search.json');

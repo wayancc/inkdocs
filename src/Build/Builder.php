@@ -73,7 +73,8 @@ final class Builder
         );
 
         foreach ($it as $file) {
-            $rel = substr($file->getPathname(), strlen($from) + 1);
+            // Windows paths use "\"; normalise so the skip list below matches.
+            $rel = str_replace('\\', '/', substr($file->getPathname(), strlen($from) + 1));
             if (in_array(explode('/', $rel)[0], $skip, true)) {
                 continue;
             }

@@ -75,7 +75,13 @@ final class Config
     {
         $value = (string) $this->get($key);
 
-        return str_starts_with($value, '/') ? $value : $this->root . '/' . $value;
+        return self::isAbsolute($value) ? $value : $this->root . '/' . $value;
+    }
+
+    /** "/srv/docs", "C:\docs", "C:/docs" and "\\server\share" are absolute; "content" is not. */
+    public static function isAbsolute(string $path): bool
+    {
+        return preg_match('~^(/|\\\\|[A-Za-z]:[/\\\\])~', $path) === 1;
     }
 
     public function baseUrl(): string

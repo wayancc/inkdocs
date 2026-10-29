@@ -213,7 +213,8 @@ final class Site
         $hasGit ??= function_exists('shell_exec') && is_dir($this->config->root . '/.git');
         if ($hasGit) {
             $ts = trim((string) @shell_exec('git -C ' . escapeshellarg($this->config->root)
-                . ' log -1 --format=%ct -- ' . escapeshellarg($page->source) . ' 2>/dev/null'));
+                . ' log -1 --format=%ct -- ' . escapeshellarg($page->source)
+                . (PHP_OS_FAMILY === 'Windows' ? ' 2>NUL' : ' 2>/dev/null')));
             if (ctype_digit($ts)) {
                 return (int) $ts;
             }
